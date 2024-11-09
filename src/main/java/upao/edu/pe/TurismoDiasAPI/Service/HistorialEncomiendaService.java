@@ -13,8 +13,8 @@ public class HistorialEncomiendaService {
 
     private final HistorialEncomiendaRepository historialEncomiendaRepository;
 
-    //Listar el historial de la encomienda por ID
-    public List<HistorialEncomienda> listarHistorialPorEncomiendaId(Long idEncomienda) {
-        return historialEncomiendaRepository.findByIdEncomienda(idEncomienda);
+    // Listar el historial de la encomienda por ID
+    public List<HistorialEncomienda> listarHistorialPorEncomiendaId(Integer id_encomienda) {
+        return historialEncomiendaRepository.findByEncomiendaIdEncomienda(id_encomienda);
     }
 }

@@ -5,7 +5,10 @@ import org.springframework.stereotype.Repository;
 import upao.edu.pe.TurismoDiasAPI.Entity.Encomienda;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
-public interface EncomiendaRepository extends JpaRepository<Encomienda, Long> {
+public interface EncomiendaRepository extends JpaRepository<Encomienda, Integer> {
+    Optional<Encomienda> findById(Integer id_encomienda);
+    List<Encomienda> findByEstadoIn(List<String> estados);
 }

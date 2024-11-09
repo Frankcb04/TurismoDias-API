@@ -1,5 +1,7 @@
 package upao.edu.pe.TurismoDiasAPI.Entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,22 +15,25 @@ import java.util.Date;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name= "HistorialEncomienda")
+@Table(name= "historial_encomienda")
 public class HistorialEncomienda {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer idHistorialEncomienda;
+    private Integer id_historial_encomienda;
 
-    private Date fechaEvento;
+    @Column(name = "fecha_evento")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yy")
+    private Date fecha_evento;
 
-    private String tipoEvento;
-    private String lugarActual;
-    private String estadoActual;
-    private String descripcionEvento;
+    private String tipo_evento;
+    private String lugar_actual;
+    private String estado_actual;
+    private String descripcion_evento;
 
     @ManyToOne
-    @JoinColumn(name = "idEncomienda", nullable = false)
+    @JoinColumn(name = "id_encomienda", nullable = false)
+    @JsonBackReference
     private Encomienda encomienda;
 }
 

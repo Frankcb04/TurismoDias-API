@@ -9,14 +9,14 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/historialEncomiendas")
+@RequestMapping("/api/historialEncomienda")
 public class HistorialEncomiendaController {
 
     private final HistorialEncomiendaService historialEncomiendaService;
 
     // Método para listar el historial de una encomienda específica
-    @GetMapping("/historialEncomienda/{idEncomienda}")
-    public List<HistorialEncomienda> listarHistorialPorEncomiendaId(@PathVariable Long idEncomienda) {
-        return historialEncomiendaService.listarHistorialPorEncomiendaId(idEncomienda);
+    @GetMapping("/listarHistorialEncomienda/{id_encomienda}")
+    public List<HistorialEncomienda> listarHistorialPorEncomiendaId(@PathVariable("id_encomienda") Integer id_encomienda) {
+        return historialEncomiendaService.listarHistorialPorEncomiendaId(id_encomienda);
     }
 }
