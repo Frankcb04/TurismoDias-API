@@ -1,20 +1,20 @@
 package upao.edu.pe.TurismoDiasAPI.Controller;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import upao.edu.pe.TurismoDiasAPI.Entity.Encomienda;
 import upao.edu.pe.TurismoDiasAPI.Service.EncomiendaService;
 
-import java.util.List;
 import java.util.Optional;
 
 @RestController
-@RequiredArgsConstructor
 @RequestMapping("/api/encomienda")
 public class EncomiendaController {
 
-    private final EncomiendaService encomiendaService;
+    @Autowired
+    EncomiendaService encomiendaService;
 
     // Método para listar la encomienda
     @GetMapping("/listarEncomienda/{id_encomienda}")

@@ -1,7 +1,7 @@
 package upao.edu.pe.TurismoDiasAPI.Service;
 
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import upao.edu.pe.TurismoDiasAPI.Entity.Encomienda;
@@ -9,14 +9,16 @@ import upao.edu.pe.TurismoDiasAPI.Entity.HistorialEncomienda;
 import upao.edu.pe.TurismoDiasAPI.Repository.EncomiendaRepository;
 import upao.edu.pe.TurismoDiasAPI.Repository.HistorialEncomiendaRepository;
 
+
 import java.util.*;
 
 @Service
-@RequiredArgsConstructor
 public class EncomiendaService {
 
-    private final EncomiendaRepository encomiendaRepository;
-    private final HistorialEncomiendaRepository historialEncomiendaRepository;
+    @Autowired
+    EncomiendaRepository encomiendaRepository;
+    @Autowired
+    HistorialEncomiendaRepository historialEncomiendaRepository;
 
     // Listar las encomiendas por ID
     public Optional<Encomienda> obtenerEncomiendaPorId(Integer id_encomienda) {
