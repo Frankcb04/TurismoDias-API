@@ -19,4 +19,9 @@ public class HistorialEncomiendaController {
     public List<HistorialEncomienda> listarHistorialPorEncomiendaId(@PathVariable("id_encomienda") Integer id_encomienda) {
         return historialEncomiendaService.listarHistorialPorEncomiendaId(id_encomienda);
     }
+
+    @GetMapping("/obtenerUltimoHistorial/{id_encomienda}")
+    public HistorialEncomienda obtenerUltimoHistorial(@PathVariable("id_encomienda") Integer id_encomienda) {
+        return historialEncomiendaService.listarHistorialPorEncomiendaId(id_encomienda).getFirst();
+    }
 }
