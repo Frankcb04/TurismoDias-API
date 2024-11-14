@@ -15,6 +15,6 @@ public class HistorialEncomiendaService {
 
     // Listar el historial de la encomienda por ID
     public List<HistorialEncomienda> listarHistorialPorEncomiendaId(Integer id_encomienda) {
-        return historialEncomiendaRepository.findByEncomiendaIdEncomienda(id_encomienda);
+        return historialEncomiendaRepository.findByEncomiendaIdEncomiendaOrderByFechaEventoDesc(id_encomienda);
     }
 }
