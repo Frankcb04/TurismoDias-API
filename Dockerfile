@@ -21,7 +21,7 @@ FROM eclipse-temurin:21-jdk-alpine
 WORKDIR /app
 
 # Copiar el archivo JAR de la aplicación al contenedor
-COPY --from=build /app/target/TurismoDiasAPI-1.0.0-SNAPSHOT.jar app.jar
+COPY --from=build /app/target/*.jar app.jar
 
 # Exponer el puerto en el que la aplicación se ejecutará
 EXPOSE 8080
