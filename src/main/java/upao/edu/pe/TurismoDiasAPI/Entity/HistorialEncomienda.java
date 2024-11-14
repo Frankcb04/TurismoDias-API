@@ -23,12 +23,11 @@ public class HistorialEncomienda {
     private Integer id_historial_encomienda;
 
     @Column(name = "fecha_evento")
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yy")
     private Date fecha_evento;
 
-    private String tipo_evento;
+    private String tipo_evento; // ENUM -> Recepción - Despacho - En tránsito y Entrega
     private String lugar_actual;
-    private String estado_actual;
+    private String estado_actual; // ENUM -> En tránsito - Entregado
     private String descripcion_evento;
 
     @ManyToOne

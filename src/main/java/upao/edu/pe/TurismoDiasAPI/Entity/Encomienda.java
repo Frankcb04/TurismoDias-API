@@ -27,13 +27,12 @@ public class Encomienda {
     private String ciudad_origen;
     private String ciudad_destino;
     private String direccion_destino;
-    private String tipo_entrega;
+    private String tipo_entrega; // ENUM -> delivery o recojo en tienda
     private Integer cant_paquetes;
-    private String estado;
+    private String estado; // ENUM -> pendiente, en tránsito y entregado
 
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yy")
     private Date fecha_envio;
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yy")
+
     private Date fecha_entrega;
 
     private String nombre_emisor;

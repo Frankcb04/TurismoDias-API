@@ -79,7 +79,7 @@ public class EncomiendaService {
             if (estadoActual.equals("En tránsito") && descripcionEvento.contains("Salió de")) {
                 long horasTranscurridas = calcularHorasDesdeUltimoEvento(ultimoHistorial.getFecha_evento());
                 String ruta = encomienda.getCiudad_origen() + "-" + encomienda.getCiudad_destino();
-                Integer horasViaje = tiempoViaje.get(ruta);
+                Integer horasViaje = tiempoViaje.get(ruta); // encomienda.getHoraRuta();
 
                 if (horasViaje != null && horasTranscurridas >= horasViaje) {
                     agregarHistorial(encomienda, "Recepción", encomienda.getCiudad_destino(), "En tránsito", "Llegó a la sucursal de " + encomienda.getCiudad_destino());
@@ -101,7 +101,7 @@ public class EncomiendaService {
 
     private HistorialEncomienda obtenerUltimoHistorial(Encomienda encomienda) {
         List<HistorialEncomienda> historiales = historialEncomiendaRepository.findByEncomiendaOrderByFechaEventoDesc(encomienda);
-        return historiales.isEmpty() ? null : historiales.get(0); // Obtiene el más reciente o devuelve null si no hay registros
+        return historiales.isEmpty() ? null : historiales.getFirst(); // Obtiene el más reciente o devuelve null si no hay registros
     }
 
     private void agregarHistorial(Encomienda encomienda, String tipo_evento, String lugar_actual, String estado_actual, String descripcion_evento) {
