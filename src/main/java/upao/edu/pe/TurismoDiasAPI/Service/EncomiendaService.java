@@ -4,12 +4,16 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import upao.edu.pe.TurismoDiasAPI.DTO.EncomiendaDTO;
+import upao.edu.pe.TurismoDiasAPI.DTO.HistorialEncomiendaDTO;
 import upao.edu.pe.TurismoDiasAPI.Entity.Encomienda;
 import upao.edu.pe.TurismoDiasAPI.Entity.HistorialEncomienda;
 import upao.edu.pe.TurismoDiasAPI.Repository.EncomiendaRepository;
 import upao.edu.pe.TurismoDiasAPI.Repository.HistorialEncomiendaRepository;
 
+import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -17,107 +21,158 @@ public class EncomiendaService {
 
     private final EncomiendaRepository encomiendaRepository;
     private final HistorialEncomiendaRepository historialEncomiendaRepository;
+    private final HistorialEncomiendaService historialEncomiendaService;
+    SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
 
     // Listar las encomiendas por ID
     public Optional<Encomienda> obtenerEncomiendaPorId(Integer id_encomienda) {
         return encomiendaRepository.findById(id_encomienda);
     }
 
-    private static final Map<String, Integer> tiempoViaje = new HashMap<>();
-
-    static {
-        tiempoViaje.put("Trujillo-Chiclayo", 4);
-        tiempoViaje.put("Lima-Chimbote", 7);
-        tiempoViaje.put("Chiclayo-Piura", 3);
-        tiempoViaje.put("Piura-Jaén", 7);
-        tiempoViaje.put("Jaén-Pacasmayo", 9);
-        tiempoViaje.put("Pacasmayo-Nueva Cajamarca", 14);
-        tiempoViaje.put("Cajamarca-Cajabamba", 3);
-        tiempoViaje.put("Cajabamba-Piura", 12);
-        tiempoViaje.put("Piura-Lima", 16);
-        tiempoViaje.put("Lima-Trujillo", 9);
-        tiempoViaje.put("Trujillo-Chepén", 3);
-        tiempoViaje.put("Cajamarca-Chimbote", 8);
-        tiempoViaje.put("Cajabamba-Moyobamba", 15);
-        tiempoViaje.put("Chiclayo-Chilete", 4);
-        tiempoViaje.put("Lima-Nueva Cajamarca", 23);
-        tiempoViaje.put("Nueva Cajamarca-San Marcos", 13);
-        tiempoViaje.put("Tarapoto-Moyobamba", 2);
-        tiempoViaje.put("Cajamarca-Tarapoto", 16);
-        tiempoViaje.put("Chilete-Chiclayo", 4);
-        tiempoViaje.put("Chimbote-Chiclayo", 6);
-        tiempoViaje.put("San Marcos-Cajabamba", 2);
-    }
-
-    @Scheduled(fixedRate = 600000) // Cada 10 minutos
-    public void actualizarEstadosAutomatica() {
-        List<Encomienda> encomiendasPendientes = encomiendaRepository.findByEstadoIn(List.of("Pendiente", "En tránsito"));
+    // Inicializar el historial de envío para encomiendas en estado "Pendiente"
+    @PostConstruct
+    public void inicializarEncomiendas() {
+        // Envolver "Pendiente" en una lista
+        List<Encomienda> encomiendasPendientes = encomiendaRepository.findByEstadoIn(Collections.singletonList("Pendiente"));
         for (Encomienda encomienda : encomiendasPendientes) {
-            actualizarEstadoEncomienda(encomienda);
+            iniciarEnvioEncomienda(encomienda);
         }
     }
 
-    @PostConstruct
-    public void inicializarVerificacionAutomatica() {
-        actualizarEstadosAutomatica();
+    // Método programado para actualizar el estado de las encomiendas cada 2 minutos
+    @Scheduled(fixedDelay = 2, timeUnit = TimeUnit.MINUTES) // Cada 2 minutos
+    public void actualizarEstadosEncomiendas() {
+        // Envolver "En tránsito" en una lista
+        List<Encomienda> encomiendasEnTransito = encomiendaRepository.findByEstadoIn(Collections.singletonList("En tránsito"));
+        for (Encomienda encomienda : encomiendasEnTransito) {
+            actualizarProgresoEnvio(encomienda);
+        }
     }
 
-    public void actualizarEstadoEncomienda(Encomienda encomienda) {
-        HistorialEncomienda ultimoHistorial = obtenerUltimoHistorial(encomienda);
+    // Iniciar el envío para encomiendas pendientes
+    private void iniciarEnvioEncomienda(Encomienda encomienda) {
+        // Crear el primer historial de envío y cambiar estado a "En tránsito"
+        agregarHistorial(encomienda, "Inicio de envío", encomienda.getCiudad_origen(), "En tránsito",
+                "El paquete acaba de comenzar su viaje.");
+        encomienda.setEstado("En tránsito");
+        encomienda.setFecha_envio(new Date());
+        encomiendaRepository.save(encomienda);
+    }
 
-        if (encomienda.getEstado().equals("Pendiente") && ultimoHistorial == null) {
+    // Actualizar el progreso del envío cada 10 minutos
+    private void actualizarProgresoEnvio(Encomienda encomienda) {
+        long minutosTranscurridos = calcularMinutosDesdeUltimoEvento(encomienda.getFecha_envio());
+        int cantidadHorasViaje = encomienda.getCant_horas_viaje();
+        //int minutosViaje = cantidadHorasViaje;
+        int minutosViaje = cantidadHorasViaje * 60;
+
+        if (minutosTranscurridos >= minutosViaje) {
+            // Si el tiempo de viaje terminó, agregar historial de llegada
+            agregarHistorial(encomienda, "Llegada a ciudad destino", encomienda.getCiudad_destino(), "En tránsito",
+                    "El paquete está llegando a la ciudad de destino.");
+            esperarAlmacenaje(encomienda);
+        } else if (minutosTranscurridos >= minutosViaje - 10) {
+            // Cerca de llegar al destino
+            agregarHistorial(encomienda, "Cerca de destino", encomienda.getCiudad_destino(), "En tránsito",
+                    "El paquete está cerca de llegar a la ciudad de destino.");
+        }
+    }
+
+    // Esperar en almacén antes de la entrega final
+    private void esperarAlmacenaje(Encomienda encomienda) {
+        agregarHistorial(encomienda, "Almacén de sucursal", encomienda.getCiudad_destino(), "En tránsito",
+                "El paquete ha llegado al almacén de la sucursal.");
+        if (encomienda.getTipo_entrega().equals("Domicilio")) {
+            prepararEntregaADomicilio(encomienda);
+        } else if (encomienda.getTipo_entrega().equals("Recojo en tienda")) {
+            prepararEntregaRecojoEnTienda(encomienda);
+        }
+    }
+
+    // Entrega a domicilio
+    private void prepararEntregaADomicilio(Encomienda encomienda) {
+        agregarHistorial(encomienda, "Camino a entrega a domicilio", encomienda.getCiudad_destino(), "En tránsito",
+                "El encargado está llevando el paquete a la dirección registrada.");
+        finalizarEntrega(encomienda, "Se entregó el paquete al cliente.");
+    }
+
+    // Entrega en tienda
+    private void prepararEntregaRecojoEnTienda(Encomienda encomienda) {
+        agregarHistorial(encomienda, "Listo para recojo en tienda", encomienda.getCiudad_destino(), "En tránsito",
+                "El paquete está listo para que el cliente lo recoja en la tienda.");
+        finalizarEntrega(encomienda, "El cliente recogió el paquete en la tienda.");
+    }
+
+    // Método para finalizar la entrega y cambiar el estado a "Entregado"
+    private void finalizarEntrega(Encomienda encomienda, String descripcion) {
+        agregarHistorial(encomienda, "Entrega finalizada", encomienda.getCiudad_destino(), "Entregado", descripcion);
+        encomienda.setEstado("Entregado");
+        encomienda.setFecha_entrega(new Date());
+        encomiendaRepository.save(encomienda);
+    }
+
+    // Método auxiliar para calcular minutos transcurridos desde el último evento
+    private long calcularMinutosDesdeUltimoEvento(Date fechaEvento) {
+        long diferenciaMilisegundos = new Date().getTime() - fechaEvento.getTime();
+        return diferenciaMilisegundos / (1000 * 60); // Convertir de ms a minutos
+    }
+
+    // Método auxiliar para agregar historial de eventos
+    private void agregarHistorial(Encomienda encomienda, String tipoEvento, String lugarActual, String estadoActual, String descripcionEvento) {
+        HistorialEncomienda historial = new HistorialEncomienda();
+        historial.setFecha_evento(new Date());
+        historial.setTipo_evento(tipoEvento);
+        historial.setLugar_actual(lugarActual);
+        historial.setEstado_actual(estadoActual);
+        historial.setDescripcion_evento(descripcionEvento);
+        historial.setEncomienda(encomienda);
+        historialEncomiendaRepository.save(historial);
+    }
+
+    public void omitirViajeYActualizarEstado(Encomienda encomienda) {
+        if (encomienda.getEstado().equals("Pendiente")) {
+            // Inicio del viaje
             agregarHistorial(encomienda, "Aceptación", encomienda.getCiudad_origen(), "Pendiente", "Se aceptó el paquete");
             encomienda.setEstado("En tránsito");
             encomienda.setFecha_envio(new Date());
             agregarHistorial(encomienda, "Envío", encomienda.getCiudad_origen(), "En tránsito", "El paquete salió de " + encomienda.getCiudad_origen());
         }
 
-        if (ultimoHistorial != null) {
-            String descripcionEvento = ultimoHistorial.getDescripcion_evento();
-            String estadoActual = encomienda.getEstado();
+        if (encomienda.getEstado().equals("En tránsito")) {
+            // Llegada a la ciudad de destino
+            agregarHistorial(encomienda, "Recepción", encomienda.getCiudad_destino(), "En tránsito", "Llegó a la sucursal de " + encomienda.getCiudad_destino());
+            encomienda.setEstado("En almacén");
+        }
 
-            if (estadoActual.equals("En tránsito") && descripcionEvento.contains("Salió de")) {
-                long horasTranscurridas = calcularHorasDesdeUltimoEvento(ultimoHistorial.getFecha_evento());
-                String ruta = encomienda.getCiudad_origen() + "-" + encomienda.getCiudad_destino();
-                Integer horasViaje = tiempoViaje.get(ruta); // encomienda.getHoraRuta();
-
-                if (horasViaje != null && horasTranscurridas >= horasViaje) {
-                    agregarHistorial(encomienda, "Recepción", encomienda.getCiudad_destino(), "En tránsito", "Llegó a la sucursal de " + encomienda.getCiudad_destino());
-                }
-            } else if (estadoActual.equals("En tránsito") && descripcionEvento.contains("Llegó a la sucursal")) {
-                if (encomienda.getTipo_entrega().equals("Domicilio")) {
-                    agregarHistorial(encomienda, "Entrega", encomienda.getCiudad_destino(), "Entregado", "Se entregó la encomienda en la dirección registrada");
-                    encomienda.setEstado("Entregado");
-                    encomienda.setFecha_entrega(new Date());
-                } else if (encomienda.getTipo_entrega().equals("Recojo en tienda")) {
-                    agregarHistorial(encomienda, "Entrega", encomienda.getCiudad_destino(), "Entregado", "El cliente recogió su encomienda");
-                    encomienda.setEstado("Entregado");
-                    encomienda.setFecha_entrega(new Date());
-                }
+        if (encomienda.getEstado().equals("En almacén")) {
+            if (encomienda.getTipo_entrega().equals("Domicilio")) {
+                // Entrega a domicilio
+                agregarHistorial(encomienda, "Entrega", encomienda.getCiudad_destino(), "En tránsito", "El encargado está llevando los paquetes respectivos");
+                encomienda.setEstado("Entregado");
+                encomienda.setFecha_entrega(new Date());
+                agregarHistorial(encomienda, "Entrega finalizada", encomienda.getCiudad_destino(), "Entregado", "El paquete fue entregado al cliente en su domicilio");
+            } else if (encomienda.getTipo_entrega().equals("Recojo en tienda")) {
+                // Recojo en tienda
+                agregarHistorial(encomienda, "Disponibilidad", encomienda.getCiudad_destino(), "En tránsito", "El cliente puede recoger su paquete en la sucursal");
+                encomienda.setEstado("Entregado");
+                encomienda.setFecha_entrega(new Date());
+                agregarHistorial(encomienda, "Entrega finalizada", encomienda.getCiudad_destino(), "Entregado", "El cliente recogió su encomienda");
             }
         }
+
         encomiendaRepository.save(encomienda);
     }
 
-    private HistorialEncomienda obtenerUltimoHistorial(Encomienda encomienda) {
-        List<HistorialEncomienda> historiales = historialEncomiendaRepository.findByEncomiendaOrderByFechaEventoDesc(encomienda);
-        return historiales.isEmpty() ? null : historiales.getFirst(); // Obtiene el más reciente o devuelve null si no hay registros
+    public EncomiendaDTO retornarEncomiendaDTO(Encomienda encomienda){
+        String fecha_envio = dateFormat.format(encomienda.getFecha_envio());
+        String fecha_entrega = encomienda.getFecha_entrega() == null ? "Encomienda en camino" : dateFormat.format(encomienda.getFecha_entrega());
+        List<HistorialEncomiendaDTO> historialEncomiendaDTOS = new ArrayList<>(List.of());
+        for(HistorialEncomienda historialEncomienda : encomienda.getHistoriales()){
+            HistorialEncomiendaDTO historialEncomiendaDTO = historialEncomiendaService.retornarHistorialEncomiendaDTO(historialEncomienda);
+            historialEncomiendaDTOS.add(historialEncomiendaDTO);
+        }
+        return new EncomiendaDTO(encomienda.getId_encomienda(), encomienda.getDescripcion(), encomienda.getCiudad_origen(), encomienda.getCiudad_destino(), encomienda.getDireccion_destino(), encomienda.getTipo_entrega(), encomienda.getCant_paquetes(), encomienda.getEstado(), encomienda.getCant_horas_viaje(), fecha_envio, fecha_entrega, encomienda.getNombre_emisor(), encomienda.getApellido_emisor(), encomienda.getDni_emisor(), encomienda.getNombre_receptor(), encomienda.getApellido_receptor(), encomienda.getDni_receptor(), encomienda.getRazon_social_emisor(), encomienda.getRuc_emisor(), encomienda.getRazon_social_receptor(), encomienda.getRuc_receptor(), historialEncomiendaDTOS);
     }
 
-    private void agregarHistorial(Encomienda encomienda, String tipo_evento, String lugar_actual, String estado_actual, String descripcion_evento) {
-        HistorialEncomienda historial = new HistorialEncomienda();
-        historial.setFecha_evento(new Date());
-        historial.setTipo_evento(tipo_evento);
-        historial.setLugar_actual(lugar_actual);
-        historial.setEstado_actual(estado_actual);
-        historial.setDescripcion_evento(descripcion_evento);
-        historial.setEncomienda(encomienda);
-        historialEncomiendaRepository.save(historial);
-    }
-
-    private long calcularHorasDesdeUltimoEvento(Date fecha_evento) {
-        long diferenciaMilisegundos = new Date().getTime() - fecha_evento.getTime();
-        return diferenciaMilisegundos / (1000 * 60 * 60); // Convierte de ms a horas
-    }
 }
 
