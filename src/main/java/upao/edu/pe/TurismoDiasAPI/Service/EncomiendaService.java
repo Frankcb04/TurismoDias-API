@@ -40,7 +40,7 @@ public class EncomiendaService {
     }
 
     // Método programado para actualizar el estado de las encomiendas cada 2 minutos
-    @Scheduled(fixedDelay = 2, timeUnit = TimeUnit.MINUTES) // Cada 2 minutos
+    @Scheduled(fixedDelay = 2, timeUnit = TimeUnit.MINUTES, initialDelay = 2) // Cada 2 minutos
     public void actualizarEstadosEncomiendas() {
         // Envolver "En tránsito" en una lista
         List<Encomienda> encomiendasEnTransito = encomiendaRepository.findByEstadoIn(Collections.singletonList("En tránsito"));
