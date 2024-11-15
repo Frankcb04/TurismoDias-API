@@ -20,8 +20,18 @@ public class EncomiendaController {
     // Método para listar la encomienda
     @GetMapping("/listarEncomienda/{id_encomienda}")
     public ResponseEntity<EncomiendaDTO> obtenerEncomiendaPorId(@PathVariable("id_encomienda") Integer id_encomienda) {
+        // Intentamos obtener la encomienda
         Optional<Encomienda> encomiendaOpt = encomiendaService.obtenerEncomiendaPorId(id_encomienda);
-        return encomiendaOpt.map(encomienda -> ResponseEntity.ok(encomiendaService.retornarEncomiendaDTO(encomienda))).orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).body(null));
+
+        // Verificamos si no se encuentra
+        if (encomiendaOpt.isEmpty()) {
+            // Lanzamos RuntimeException con mensaje
+            throw new RuntimeException("No se encontró la encomienda con ID: " + id_encomienda);
+        }
+
+        // Si la encontramos, convertimos a DTO y la retornamos
+        EncomiendaDTO encomiendaDTO = encomiendaService.retornarEncomiendaDTO(encomiendaOpt.get());
+        return ResponseEntity.ok(encomiendaDTO);
     }
 
     // Actualizar todos los estados manualmente
