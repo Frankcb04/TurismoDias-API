@@ -17,7 +17,8 @@ public class HistorialEncomienda {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id_historial_encomienda;
+    @Column(name = "id_historial_encomienda")
+    private Integer idHistorialEncomienda;
 
     @Column(name = "fecha_evento")
     private Date fecha_evento;

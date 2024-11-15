@@ -18,7 +18,8 @@ public class Encomienda {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id_encomienda;
+    @Column(name = "id_encomienda")
+    private Integer idEncomienda;
 
     private String descripcion;
     private String ciudad_origen;
