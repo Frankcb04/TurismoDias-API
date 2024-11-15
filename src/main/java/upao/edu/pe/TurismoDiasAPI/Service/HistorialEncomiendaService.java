@@ -18,11 +18,11 @@ public class HistorialEncomiendaService {
 
     // Listar el historial de la encomienda por ID
     public List<HistorialEncomiendaDTO> listarHistorialPorEncomiendaId(Integer id_encomienda) {
-        return historialEncomiendaRepository.findByEncomiendaIdEncomiendaOrderByFechaEventoDesc(id_encomienda).stream().map(this::retornarHistorialEncomiendaDTO).toList();
+        return historialEncomiendaRepository.findByEncomiendaIdEncomiendaOrderByIdHistorialEncomiendaDesc(id_encomienda).stream().map(this::retornarHistorialEncomiendaDTO).toList();
     }
 
     protected HistorialEncomiendaDTO retornarHistorialEncomiendaDTO(HistorialEncomienda historialEncomienda) {
         String fecha_evento = dateFormat.format(historialEncomienda.getFecha_evento());
-        return new HistorialEncomiendaDTO(historialEncomienda.getId_historial_encomienda(), fecha_evento, historialEncomienda.getTipo_evento(), historialEncomienda.getLugar_actual(), historialEncomienda.getEstado_actual(), historialEncomienda.getDescripcion_evento());
+        return new HistorialEncomiendaDTO(historialEncomienda.getIdHistorialEncomienda(), fecha_evento, historialEncomienda.getTipo_evento(), historialEncomienda.getLugar_actual(), historialEncomienda.getEstado_actual(), historialEncomienda.getDescripcion_evento());
     }
 }
