@@ -2,6 +2,8 @@ package upao.edu.pe.TurismoDiasAPI.Service;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import upao.edu.pe.TurismoDiasAPI.DTO.EncomiendaDTO;
@@ -23,26 +25,22 @@ public class EncomiendaService {
     private final HistorialEncomiendaRepository historialEncomiendaRepository;
     private final HistorialEncomiendaService historialEncomiendaService;
     SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
+    private static final Logger logger = LoggerFactory.getLogger(EncomiendaService.class);
 
     // Listar las encomiendas por ID
     public Optional<Encomienda> obtenerEncomiendaPorId(Integer id_encomienda) {
         return encomiendaRepository.findById(id_encomienda);
     }
 
-    // Inicializar el historial de envío para encomiendas en estado "Pendiente"
-    @PostConstruct
-    public void inicializarEncomiendas() {
-        // Envolver "Pendiente" en una lista
+    // Método programado para actualizar el estado de las encomiendas cada 2 minutos
+    @Scheduled(fixedDelay = 2, timeUnit = TimeUnit.MINUTES, initialDelay = 2) // Cada 2 minutos
+    public void actualizarEstadosEncomiendas() {
+        logger.info("Actualizando estado de las encomiendas");
+        // Envolver "En tránsito" en una lista
         List<Encomienda> encomiendasPendientes = encomiendaRepository.findByEstadoIn(Collections.singletonList("Pendiente"));
         for (Encomienda encomienda : encomiendasPendientes) {
             iniciarEnvioEncomienda(encomienda);
         }
-    }
-
-    // Método programado para actualizar el estado de las encomiendas cada 2 minutos
-    @Scheduled(fixedDelay = 2, timeUnit = TimeUnit.MINUTES) // Cada 2 minutos
-    public void actualizarEstadosEncomiendas() {
-        // Envolver "En tránsito" en una lista
         List<Encomienda> encomiendasEnTransito = encomiendaRepository.findByEstadoIn(Collections.singletonList("En tránsito"));
         for (Encomienda encomienda : encomiendasEnTransito) {
             actualizarProgresoEnvio(encomienda);
