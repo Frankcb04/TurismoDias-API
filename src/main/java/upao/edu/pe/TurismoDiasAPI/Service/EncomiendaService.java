@@ -164,8 +164,13 @@ public class EncomiendaService {
     }
 
     public EncomiendaDTO retornarEncomiendaDTO(Encomienda encomienda){
-        String fecha_envio = dateFormat.format(encomienda.getFecha_envio());
-        String fecha_entrega = encomienda.getFecha_entrega() == null ? "Encomienda en camino" : dateFormat.format(encomienda.getFecha_entrega());
+        String fecha_envio = encomienda.getFecha_envio() == null ? "Encomienda pendiente" : dateFormat.format(encomienda.getFecha_envio());
+        String fecha_entrega = "";
+        if(fecha_envio.equals("Encomienda pendiente")){
+            fecha_entrega = encomienda.getFecha_entrega() == null ? "Encomienda pendiente" : dateFormat.format(encomienda.getFecha_entrega());
+        } else{
+            fecha_entrega = encomienda.getFecha_entrega() == null ? "Encomienda en camino" : dateFormat.format(encomienda.getFecha_entrega());
+        }
         List<HistorialEncomiendaDTO> historialEncomiendaDTOS = new ArrayList<>(List.of());
         for(HistorialEncomienda historialEncomienda : encomienda.getHistoriales()){
             HistorialEncomiendaDTO historialEncomiendaDTO = historialEncomiendaService.retornarHistorialEncomiendaDTO(historialEncomienda);
