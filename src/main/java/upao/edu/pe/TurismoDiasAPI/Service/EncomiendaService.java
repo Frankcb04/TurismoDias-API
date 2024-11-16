@@ -63,23 +63,30 @@ public class EncomiendaService {
         int cantidadHorasViaje = encomienda.getCant_horas_viaje();
         //int minutosViaje = cantidadHorasViaje;
         int minutosViaje = cantidadHorasViaje * 60;
+        HistorialEncomiendaDTO historialEncomienda = historialEncomiendaService.listarHistorialPorEncomiendaId(encomienda.getIdEncomienda()).getFirst();
 
         if (minutosTranscurridos >= minutosViaje) {
             // Si el tiempo de viaje terminó, agregar historial de llegada
-            agregarHistorial(encomienda, "Llegada a ciudad destino", encomienda.getCiudad_destino(), "En tránsito",
-                    "El paquete está llegando a la ciudad de destino.");
-            esperarAlmacenaje(encomienda);
+            if(!historialEncomienda.getDescripcion_evento().contains("llegando a la ciudad de destino")){
+                agregarHistorial(encomienda, "Llegada a ciudad destino", encomienda.getCiudad_destino(), "En tránsito",
+                        "El paquete está llegando a la ciudad de destino.");
+            }
+            esperarAlmacenaje(encomienda, historialEncomienda);
         } else if (minutosTranscurridos >= minutosViaje - 10) {
             // Cerca de llegar al destino
-            agregarHistorial(encomienda, "Cerca de destino", encomienda.getCiudad_destino(), "En tránsito",
-                    "El paquete está cerca de llegar a la ciudad de destino.");
+            if(!historialEncomienda.getDescripcion_evento().contains("está cerca de llegar a la ciudad de destino")){
+                agregarHistorial(encomienda, "Cerca de destino", encomienda.getCiudad_destino(), "En tránsito",
+                        "El paquete está cerca de llegar a la ciudad de destino.");
+            }
         }
     }
 
     // Esperar en almacén antes de la entrega final
-    private void esperarAlmacenaje(Encomienda encomienda) {
-        agregarHistorial(encomienda, "Almacén de sucursal", encomienda.getCiudad_destino(), "En tránsito",
-                "El paquete ha llegado al almacén de la sucursal.");
+    private void esperarAlmacenaje(Encomienda encomienda, HistorialEncomiendaDTO ultimoHistorial) {
+        if(ultimoHistorial.getDescripcion_evento().contains("ha llegado al almacén de la sucursal.")){
+            agregarHistorial(encomienda, "Almacén de sucursal", encomienda.getCiudad_destino(), "En tránsito",
+                    "El paquete ha llegado al almacén de la sucursal.");
+        }
         if (encomienda.getTipo_entrega().equals("Domicilio")) {
             prepararEntregaADomicilio(encomienda);
         } else if (encomienda.getTipo_entrega().equals("Recojo en tienda")) {
