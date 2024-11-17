@@ -1,6 +1,5 @@
 package upao.edu.pe.TurismoDiasAPI.Service;
 
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,10 +37,10 @@ public class EncomiendaService {
         logger.info("Actualizando estado de las encomiendas");
         // Envolver "En tránsito" en una lista
         List<Encomienda> encomiendasPendientes = encomiendaRepository.findByEstadoIn(Collections.singletonList("Pendiente"));
+        List<Encomienda> encomiendasEnTransito = encomiendaRepository.findByEstadoIn(Collections.singletonList("En tránsito"));
         for (Encomienda encomienda : encomiendasPendientes) {
             iniciarEnvioEncomienda(encomienda);
         }
-        List<Encomienda> encomiendasEnTransito = encomiendaRepository.findByEstadoIn(Collections.singletonList("En tránsito"));
         for (Encomienda encomienda : encomiendasEnTransito) {
             actualizarProgresoEnvio(encomienda);
         }
@@ -63,49 +62,120 @@ public class EncomiendaService {
         int cantidadHorasViaje = encomienda.getCant_horas_viaje();
         //int minutosViaje = cantidadHorasViaje;
         int minutosViaje = cantidadHorasViaje * 60;
-        HistorialEncomiendaDTO historialEncomienda = historialEncomiendaService.listarHistorialPorEncomiendaId(encomienda.getIdEncomienda()).getFirst();
-
+        List<HistorialEncomiendaDTO> ultimosHistoriales = historialEncomiendaService.listarHistorialPorEncomiendaId(encomienda.getIdEncomienda());
+        if (minutosTranscurridos >= minutosViaje - 10) {
+            // Cerca de llegar al destino
+            boolean validacionViajeCerca = false;
+            for(HistorialEncomiendaDTO historial : ultimosHistoriales){
+                if(historial.getDescripcion_evento().equals("El paquete está cerca de llegar a la ciudad de destino.")){
+                    validacionViajeCerca = true;
+                    break;
+                }
+            }
+            if(!validacionViajeCerca){
+                agregarHistorial(encomienda, "Cerca de destino", encomienda.getCiudad_destino(), "En tránsito",
+                        "El paquete está cerca de llegar a la ciudad de destino.");
+            }
+        }
         if (minutosTranscurridos >= minutosViaje) {
             // Si el tiempo de viaje terminó, agregar historial de llegada
-            if(!historialEncomienda.getDescripcion_evento().contains("llegando a la ciudad de destino")){
+            boolean validacion = false;
+            for(HistorialEncomiendaDTO historial : ultimosHistoriales){
+                if(historial.getDescripcion_evento().equals("El paquete está llegando a la ciudad de destino.")){
+                    validacion = true;
+                    break;
+                }
+            }
+            if(!validacion){
                 agregarHistorial(encomienda, "Llegada a ciudad destino", encomienda.getCiudad_destino(), "En tránsito",
                         "El paquete está llegando a la ciudad de destino.");
             }
-            esperarAlmacenaje(encomienda, historialEncomienda);
-        } else if (minutosTranscurridos >= minutosViaje - 10) {
-            // Cerca de llegar al destino
-            if(!historialEncomienda.getDescripcion_evento().contains("está cerca de llegar a la ciudad de destino")){
-                agregarHistorial(encomienda, "Cerca de destino", encomienda.getCiudad_destino(), "En tránsito",
-                        "El paquete está cerca de llegar a la ciudad de destino.");
+            if(validacion){
+                esperarAlmacenaje(encomienda);
             }
         }
     }
 
     // Esperar en almacén antes de la entrega final
-    private void esperarAlmacenaje(Encomienda encomienda, HistorialEncomiendaDTO ultimoHistorial) {
-        if(ultimoHistorial.getDescripcion_evento().contains("ha llegado al almacén de la sucursal.")){
+    private void esperarAlmacenaje(Encomienda encomienda) {
+        List<HistorialEncomiendaDTO> ultimoHistorial = historialEncomiendaService.listarHistorialPorEncomiendaId(encomienda.getIdEncomienda());
+        boolean validacion = false;
+        for(HistorialEncomiendaDTO historial : ultimoHistorial){
+            if(historial.getDescripcion_evento().equals("El paquete ha llegado al almacén de la sucursal.")){
+                validacion = true;
+                break;
+            }
+        }
+        if(!validacion){
             agregarHistorial(encomienda, "Almacén de sucursal", encomienda.getCiudad_destino(), "En tránsito",
                     "El paquete ha llegado al almacén de la sucursal.");
         }
-        if (encomienda.getTipo_entrega().equals("Domicilio")) {
-            prepararEntregaADomicilio(encomienda);
-        } else if (encomienda.getTipo_entrega().equals("Recojo en tienda")) {
-            prepararEntregaRecojoEnTienda(encomienda);
+        validacion = false;
+        for(HistorialEncomiendaDTO historial : ultimoHistorial){
+            if(historial.getDescripcion_evento().equals("El paquete ha llegado al almacén de la sucursal.")){
+                validacion = true;
+                break;
+            }
+        }
+        if(validacion){
+            if (encomienda.getTipo_entrega().equals("Delivery")) {
+                prepararEntregaADomicilio(encomienda);
+            } else if (encomienda.getTipo_entrega().equals("Recojo en tienda")) {
+                prepararEntregaRecojoEnTienda(encomienda);
+            }
         }
     }
 
     // Entrega a domicilio
     private void prepararEntregaADomicilio(Encomienda encomienda) {
-        agregarHistorial(encomienda, "Camino a entrega a domicilio", encomienda.getCiudad_destino(), "En tránsito",
-                "El encargado está llevando el paquete a la dirección registrada.");
-        finalizarEntrega(encomienda, "Se entregó el paquete al cliente.");
+        List<HistorialEncomiendaDTO> ultimoHistorial = historialEncomiendaService.listarHistorialPorEncomiendaId(encomienda.getIdEncomienda());
+        boolean validacion = false;
+        for(HistorialEncomiendaDTO historial : ultimoHistorial){
+            if(historial.getDescripcion_evento().equals("El encargado está llevando el paquete a la dirección registrada.")){
+                validacion = true;
+                break;
+            }
+        }
+        if(!validacion){
+            agregarHistorial(encomienda, "Camino a entrega a domicilio", encomienda.getCiudad_destino(), "En tránsito",
+                    "El encargado está llevando el paquete a la dirección registrada.");
+        }
+        validacion = false;
+        for(HistorialEncomiendaDTO historial : ultimoHistorial){
+            if(historial.getDescripcion_evento().equals("El encargado está llevando el paquete a la dirección registrada.")){
+                validacion = true;
+                break;
+            }
+        }
+        if(validacion){
+            finalizarEntrega(encomienda, "Se entregó el paquete al cliente.");
+        }
     }
 
     // Entrega en tienda
     private void prepararEntregaRecojoEnTienda(Encomienda encomienda) {
-        agregarHistorial(encomienda, "Listo para recojo en tienda", encomienda.getCiudad_destino(), "En tránsito",
-                "El paquete está listo para que el cliente lo recoja en la tienda.");
-        finalizarEntrega(encomienda, "El cliente recogió el paquete en la tienda.");
+        List<HistorialEncomiendaDTO> ultimoHistorial = historialEncomiendaService.listarHistorialPorEncomiendaId(encomienda.getIdEncomienda());
+        boolean validacion = false;
+        for(HistorialEncomiendaDTO historial : ultimoHistorial){
+            if(historial.getDescripcion_evento().equals("El paquete está listo para que el cliente lo recoja en la tienda.")){
+                validacion = true;
+                break;
+            }
+        }
+        if(!validacion){
+            agregarHistorial(encomienda, "Listo para recojo en tienda", encomienda.getCiudad_destino(), "En tránsito",
+                    "El paquete está listo para que el cliente lo recoja en la tienda.");
+        }
+        validacion = false;
+        for(HistorialEncomiendaDTO historial : ultimoHistorial){
+            if(historial.getDescripcion_evento().equals("El paquete está listo para que el cliente lo recoja en la tienda.")){
+                validacion = true;
+                break;
+            }
+        }
+        if(validacion){
+            finalizarEntrega(encomienda, "El cliente recogió el paquete en la tienda.");
+        }
     }
 
     // Método para finalizar la entrega y cambiar el estado a "Entregado"
