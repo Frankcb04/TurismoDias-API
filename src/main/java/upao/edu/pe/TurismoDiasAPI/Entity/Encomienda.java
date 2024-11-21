@@ -45,6 +45,7 @@ public class Encomienda {
     private Long ruc_emisor;
     private String razon_social_receptor;
     private Long ruc_receptor;
+    private String url;
 
     @OneToMany(mappedBy = "encomienda", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
