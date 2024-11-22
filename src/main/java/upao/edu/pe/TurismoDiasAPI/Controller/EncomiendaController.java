@@ -1,21 +1,24 @@
 package upao.edu.pe.TurismoDiasAPI.Controller;
 
+import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import upao.edu.pe.TurismoDiasAPI.DTO.EncomiendaDTO;
 import upao.edu.pe.TurismoDiasAPI.Entity.Encomienda;
+import upao.edu.pe.TurismoDiasAPI.Repository.EncomiendaRepository;
 import upao.edu.pe.TurismoDiasAPI.Service.EncomiendaService;
 
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/encomienda")
+@AllArgsConstructor
 public class EncomiendaController {
 
-    @Autowired
     EncomiendaService encomiendaService;
+    private EncomiendaRepository encomiendaRepository;
 
     // Método para listar la encomienda
     @GetMapping("/listarEncomienda/{id_encomienda}")
@@ -52,5 +55,36 @@ public class EncomiendaController {
         Encomienda encomienda = encomiendaOpt.get();
         encomiendaService.omitirViajeYActualizarEstado(encomienda);
         return ResponseEntity.ok("El viaje de la encomienda fue omitido y el estado actualizado");
+    }
+
+    //Registrar encomienda
+    @PostMapping("/registrar")
+    public ResponseEntity<Encomienda> registrarEncomienda(@RequestBody EncomiendaDTO encomiendaDTO) {
+        try {
+            Encomienda nuevaEncomienda = encomiendaService.registrarEncomienda(encomiendaDTO);
+            return ResponseEntity.status(HttpStatus.CREATED).body(nuevaEncomienda);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
+    }
+
+    //Validar clave secreta
+    @PostMapping("/validar-clave/{idEncomienda}")
+    public ResponseEntity<String> validarClaveSecreta(
+            @PathVariable Integer idEncomienda,
+            @RequestParam String claveIngresada) {
+        try {
+            boolean esValida = encomiendaService.validarClaveSecreta(idEncomienda, claveIngresada);
+            if (esValida) {
+                return ResponseEntity.ok("Clave secreta validada correctamente. El paquete ha sido entregado.");
+            } else {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body("La clave secreta no coincide.");
+            }
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(e.getMessage());
+        }
     }
 }
