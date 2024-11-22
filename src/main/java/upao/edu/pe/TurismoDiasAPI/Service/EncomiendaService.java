@@ -16,6 +16,10 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+import com.twilio.Twilio;
+import com.twilio.rest.api.v2010.account.Message;
+import com.twilio.type.PhoneNumber;
+
 @Service
 @RequiredArgsConstructor
 public class EncomiendaService {
@@ -25,6 +29,17 @@ public class EncomiendaService {
     private final HistorialEncomiendaService historialEncomiendaService;
     SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
     private static final Logger logger = LoggerFactory.getLogger(EncomiendaService.class);
+
+    // Configuración de Twilio
+    // Configuración de Twilio desde variables de entorno
+    private static final String ACCOUNT_SID = System.getenv("TWILIO_ACCOUNT_SID");
+    private static final String AUTH_TOKEN = System.getenv("TWILIO_AUTH_TOKEN");
+    private static final String TWILIO_PHONE_NUMBER = System.getenv("TWILIO_PHONE_NUMBER");
+
+
+    static {
+        Twilio.init(ACCOUNT_SID, AUTH_TOKEN);
+    }
 
     // Listar las encomiendas por ID
     public Optional<Encomienda> obtenerEncomiendaPorId(Integer id_encomienda) {
@@ -251,8 +266,132 @@ public class EncomiendaService {
             HistorialEncomiendaDTO historialEncomiendaDTO = historialEncomiendaService.retornarHistorialEncomiendaDTO(historialEncomienda);
             historialEncomiendaDTOS.add(historialEncomiendaDTO);
         }
-        return new EncomiendaDTO(encomienda.getIdEncomienda(), encomienda.getDescripcion(), encomienda.getCiudad_origen(), encomienda.getCiudad_destino(), encomienda.getDireccion_destino(), encomienda.getTipo_entrega(), encomienda.getCant_paquetes(), encomienda.getEstado(), encomienda.getCant_horas_viaje(), fecha_envio, fecha_entrega, encomienda.getNombre_emisor(), encomienda.getApellido_emisor(), encomienda.getDni_emisor(), encomienda.getNombre_receptor(), encomienda.getApellido_receptor(), encomienda.getDni_receptor(), encomienda.getRazon_social_emisor(), encomienda.getRuc_emisor(), encomienda.getRazon_social_receptor(), encomienda.getRuc_receptor(), encomienda.getUrl(), historialEncomiendaDTOS);
+        return new EncomiendaDTO(encomienda.getIdEncomienda(), encomienda.getDescripcion(), encomienda.getCiudad_origen(), encomienda.getCiudad_destino(), encomienda.getDireccion_destino(), encomienda.getTipo_entrega(), encomienda.getCant_paquetes(), encomienda.getEstado(), encomienda.getCant_horas_viaje(),  encomienda.getClave_secreta(), encomienda.getUrl(), fecha_envio, fecha_entrega, encomienda.getNombre_emisor(), encomienda.getApellido_emisor(), encomienda.getDni_emisor(), encomienda.getTelefono_emisor(), encomienda.getNombre_receptor(), encomienda.getApellido_receptor(), encomienda.getDni_receptor(), encomienda.getTelefono_receptor(), encomienda.getRazon_social_emisor(), encomienda.getRuc_emisor(), encomienda.getTelefono_empresa_emisor(), encomienda.getRazon_social_receptor(), encomienda.getRuc_receptor(), encomienda.getTelefono_empresa_receptor(), historialEncomiendaDTOS);
     }
 
-}
+    //Registrar encomienda
+    public Encomienda registrarEncomienda(EncomiendaDTO encomiendaDTO) {
+        // Generar clave secreta aleatoria
+        String claveSecreta = generarClaveSecreta();
 
+        // Crear la entidad Encomienda
+        Encomienda nuevaEncomienda = new Encomienda();
+        nuevaEncomienda.setDescripcion(encomiendaDTO.getDescripcion());
+        nuevaEncomienda.setCiudad_origen(encomiendaDTO.getCiudad_origen());
+        nuevaEncomienda.setCiudad_destino(encomiendaDTO.getCiudad_destino());
+        nuevaEncomienda.setDireccion_destino(encomiendaDTO.getDireccion_destino());
+        nuevaEncomienda.setTipo_entrega(encomiendaDTO.getTipo_entrega());
+        nuevaEncomienda.setCant_paquetes(encomiendaDTO.getCant_paquetes());
+        nuevaEncomienda.setEstado("Pendiente");
+        nuevaEncomienda.setCant_horas_viaje(encomiendaDTO.getCant_horas_viaje());
+        nuevaEncomienda.setUrl(encomiendaDTO.getUrl());
+
+        nuevaEncomienda.setFecha_envio(new Date());
+
+        nuevaEncomienda.setNombre_emisor(encomiendaDTO.getNombre_emisor());
+        nuevaEncomienda.setApellido_emisor(encomiendaDTO.getApellido_emisor());
+        nuevaEncomienda.setDni_emisor(encomiendaDTO.getDni_emisor());
+        nuevaEncomienda.setTelefono_emisor(encomiendaDTO.getTelefono_emisor());
+
+        nuevaEncomienda.setNombre_receptor(encomiendaDTO.getNombre_receptor());
+        nuevaEncomienda.setApellido_receptor(encomiendaDTO.getApellido_receptor());
+        nuevaEncomienda.setDni_receptor(encomiendaDTO.getDni_receptor());
+        nuevaEncomienda.setTelefono_receptor(encomiendaDTO.getTelefono_receptor());
+
+        nuevaEncomienda.setRazon_social_emisor(encomiendaDTO.getRazon_social_emisor());
+        nuevaEncomienda.setRuc_emisor(encomiendaDTO.getRuc_emisor());
+        nuevaEncomienda.setTelefono_empresa_emisor(encomiendaDTO.getTelefono_empresa_emisor());
+
+        nuevaEncomienda.setRazon_social_receptor(encomiendaDTO.getRazon_social_receptor());
+        nuevaEncomienda.setRuc_receptor(encomiendaDTO.getRuc_receptor());
+        nuevaEncomienda.setTelefono_empresa_receptor(encomiendaDTO.getTelefono_empresa_receptor());
+
+        nuevaEncomienda.setClave_secreta(claveSecreta);
+
+        // Guardar en la base de datos
+        Encomienda encomiendaGuardada = encomiendaRepository.save(nuevaEncomienda);
+
+        // Determinar los números de teléfono para enviar mensajes
+        enviarMensajesSegunTipoCliente(encomiendaGuardada);
+
+        return encomiendaGuardada;
+    }
+
+    // Método para determinar y enviar mensajes según el tipo de cliente
+    private void enviarMensajesSegunTipoCliente(Encomienda encomienda) {
+        if (esClienteJuridico(encomienda)) {
+            // Clientes jurídicos
+            enviarMensajeSMS(encomienda.getTelefono_empresa_emisor(), generarMensaje(encomienda));
+            enviarMensajeSMS(encomienda.getTelefono_empresa_receptor(), generarMensaje(encomienda));
+        } else {
+            // Clientes naturales
+            enviarMensajeSMS(encomienda.getTelefono_emisor(), generarMensaje(encomienda));
+            enviarMensajeSMS(encomienda.getTelefono_receptor(), generarMensaje(encomienda));
+        }
+    }
+
+    // Verificar si los clientes son jurídicos
+    private boolean esClienteJuridico(Encomienda encomienda) {
+        return encomienda.getRazon_social_emisor() != null && !encomienda.getRazon_social_emisor().isEmpty()
+                && encomienda.getRazon_social_receptor() != null && !encomienda.getRazon_social_receptor().isEmpty();
+    }
+
+    // Generar mensaje SMS con el formato solicitado
+    private String generarMensaje(Encomienda encomienda) {
+        String nombreEmisor = esClienteJuridico(encomienda)
+                ? encomienda.getRazon_social_emisor()
+                : encomienda.getNombre_emisor() + " " + encomienda.getApellido_emisor();
+
+        String nombreReceptor = esClienteJuridico(encomienda)
+                ? encomienda.getRazon_social_receptor()
+                : encomienda.getNombre_receptor() + " " + encomienda.getApellido_receptor();
+
+        return String.format(
+                "Hemos recibido una encomienda de %s para %s.\nEl código de la encomienda es: %d\nLa clave para recoger es: %s",
+                nombreEmisor, nombreReceptor, encomienda.getIdEncomienda(), encomienda.getClave_secreta()
+        );
+    }
+
+    // Enviar mensaje SMS
+    private void enviarMensajeSMS(Integer numeroTelefono, String mensaje) {
+        try {
+            Message.creator(
+                    new PhoneNumber("+51" + numeroTelefono), // Número destino
+                    new PhoneNumber(TWILIO_PHONE_NUMBER),   // Número de Twilio
+                    mensaje                                 // Contenido del mensaje
+            ).create();
+            System.out.println("SMS enviado correctamente a: +51" + numeroTelefono);
+        } catch (Exception e) {
+            System.err.println("Error al enviar SMS a +51" + numeroTelefono + ": " + e.getMessage());
+        }
+    }
+
+    // Generar clave secreta con caracteres especiales
+    private String generarClaveSecreta() {
+        String caracteres = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!&@#$%";
+        Random random = new Random();
+        StringBuilder clave = new StringBuilder();
+        for (int i = 0; i < 6; i++) {
+            clave.append(caracteres.charAt(random.nextInt(caracteres.length())));
+        }
+        return clave.toString();
+    }
+
+    // Validar clave secreta
+    public boolean validarClaveSecreta(Integer idEncomienda, String claveIngresada) {
+        Encomienda encomienda = encomiendaRepository.findById(idEncomienda)
+                .orElseThrow(() -> new RuntimeException("Encomienda no encontrada"));
+
+        if (encomienda.getClave_secreta().equals(claveIngresada)) {
+            // Finalizar entrega
+            if (encomienda.getTipo_entrega().equals("Delivery")) {
+                finalizarEntrega(encomienda, "El cliente validó la clave y recibió el paquete en la dirección asignada.");
+            } else if (encomienda.getTipo_entrega().equals("Recojo en tienda")) {
+                finalizarEntrega(encomienda, "El cliente validó la clave y recogió el paquete en la tienda.");
+            }
+            return true;
+        } else {
+            throw new RuntimeException("Clave secreta incorrecta.");
+        }
+    }
+}
