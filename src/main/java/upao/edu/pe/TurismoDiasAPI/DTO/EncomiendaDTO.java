@@ -32,6 +32,7 @@ public class EncomiendaDTO {
     private Long ruc_emisor;
     private String razon_social_receptor;
     private Long ruc_receptor;
+    private String url;
 
     private List<HistorialEncomiendaDTO> historiales;
 }
