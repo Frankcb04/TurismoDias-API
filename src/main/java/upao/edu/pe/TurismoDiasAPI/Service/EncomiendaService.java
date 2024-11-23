@@ -3,6 +3,7 @@ package upao.edu.pe.TurismoDiasAPI.Service;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import upao.edu.pe.TurismoDiasAPI.DTO.EncomiendaDTO;
@@ -30,16 +31,14 @@ public class EncomiendaService {
     SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
     private static final Logger logger = LoggerFactory.getLogger(EncomiendaService.class);
 
-    // Configuración de Twilio
-    // Configuración de Twilio desde variables de entorno
-    private static final String ACCOUNT_SID = System.getenv("TWILIO_ACCOUNT_SID");
-    private static final String AUTH_TOKEN = System.getenv("TWILIO_AUTH_TOKEN");
-    private static final String TWILIO_PHONE_NUMBER = System.getenv("TWILIO_PHONE_NUMBER");
+    @Value("${twilio.account.sid}")
+    private String ACCOUNT_SID;
 
+    @Value("${twilio.auth.token}")
+    private String AUTH_TOKEN;
 
-    static {
-        Twilio.init(ACCOUNT_SID, AUTH_TOKEN);
-    }
+    @Value("${twilio.phone.number}")
+    private String TWILIO_PHONE_NUMBER;
 
     // Listar las encomiendas por ID
     public Optional<Encomienda> obtenerEncomiendaPorId(Integer id_encomienda) {
@@ -354,6 +353,8 @@ public class EncomiendaService {
 
     // Enviar mensaje SMS
     private void enviarMensajeSMS(Integer numeroTelefono, String mensaje) {
+        
+            Twilio.init(ACCOUNT_SID, AUTH_TOKEN);
         try {
             Message.creator(
                     new PhoneNumber("+51" + numeroTelefono), // Número destino
