@@ -43,23 +43,23 @@ public class Encomienda {
     private String nombre_emisor;
     private String apellido_emisor;
     private Integer dni_emisor;
-    private Integer telefono_emisor;
+    private Long telefono_emisor;
 
     //Datos del receptor
     private String nombre_receptor;
     private String apellido_receptor;
     private Integer dni_receptor;
-    private Integer telefono_receptor;
+    private Long telefono_receptor;
 
     //Datos de la empresa emisor
     private String razon_social_emisor;
     private Long ruc_emisor;
-    private Integer telefono_empresa_emisor;
+    private Long telefono_empresa_emisor;
 
     //Datos de la empresa receptor
     private String razon_social_receptor;
     private Long ruc_receptor;
-    private Integer telefono_empresa_receptor;
+    private Long telefono_empresa_receptor;
 
     @OneToMany(mappedBy = "encomienda", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
