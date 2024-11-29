@@ -122,95 +122,85 @@ public class EncomiendaService {
                 break;
             }
         }
-        // Si no existe, agregarlo
+        // Si no existe, agregar el historial de "almacén"
         if (!validacion) {
             agregarHistorial(encomienda, "Almacén de sucursal", encomienda.getCiudad_destino(), "En tránsito",
                     "El paquete ha llegado al almacén de la sucursal.");
+            return;
+        }
+        // Validar el siguiente paso según el tipo de entrega
+        if (validacion) {
+            if ("Delivery".equalsIgnoreCase(encomienda.getTipo_entrega())) {
+                // Registrar "el encargado está llevando el paquete"
+                registrarEntregaDomicilio(encomienda);
+            } else if ("Recojo en tienda".equalsIgnoreCase(encomienda.getTipo_entrega())) {
+                // Registrar "listo para recojo en tienda"
+                registrarRecojoEnTienda(encomienda);
+            }
         }
     }
 
-    // Entrega a domicilio
-    public void prepararEntregaADomicilio(Encomienda encomienda, String claveIngresada) {
+    // Registrar el historial para entrega a domicilio
+    public void registrarEntregaDomicilio(Encomienda encomienda) {
         List<HistorialEncomiendaDTO> ultimoHistorial = historialEncomiendaService.listarHistorialPorEncomiendaId(encomienda.getIdEncomienda());
-        boolean validacion = false;
+        boolean yaRegistrado = false;
 
-        // Validar si el historial ya contiene el evento de "Camino a entrega a domicilio"
+        //Verificar si existe el historial "llevando el paquete al destino"
         for (HistorialEncomiendaDTO historial : ultimoHistorial) {
             if (historial.getDescripcion_evento().equals("El encargado está llevando el paquete a la dirección registrada.")) {
-                validacion = true;
+                yaRegistrado = true;
                 break;
             }
         }
-
-        // Si no existe, agregar el historial de "Camino a entrega a domicilio"
-        if (!validacion) {
+        //Se crea el historial si no existe
+        if (!yaRegistrado) {
             agregarHistorial(encomienda, "Camino a entrega a domicilio", encomienda.getCiudad_destino(), "En tránsito",
                     "El encargado está llevando el paquete a la dirección registrada.");
         }
-
-        // Revalidar después de agregar
-        validacion = false;
-        for (HistorialEncomiendaDTO historial : ultimoHistorial) {
-            if (historial.getDescripcion_evento().equals("El encargado está llevando el paquete a la dirección registrada.")) {
-                validacion = true;
-                break;
-            }
-        }
-
-        // Si el paquete está listo para entregarse, validar la clave antes de finalizar la entrega
-        if (validacion) {
-            if (encomienda.getClave_secreta().equals(claveIngresada)) {
-                finalizarEntrega(encomienda, "Se entregó el paquete al cliente.");
-            } else {
-                throw new IllegalArgumentException("La clave secreta no coincide.");
-            }
-        }
     }
 
-    // Entrega en tienda
-    public void prepararEntregaRecojoEnTienda(Encomienda encomienda, String claveIngresada) {
+    // Registrar el historial para recojo en tienda
+    public void registrarRecojoEnTienda(Encomienda encomienda) {
         List<HistorialEncomiendaDTO> ultimoHistorial = historialEncomiendaService.listarHistorialPorEncomiendaId(encomienda.getIdEncomienda());
-        boolean validacion = false;
+        boolean yaRegistrado = false;
 
-        // Validar si el historial ya contiene el evento de "Listo para recojo en tienda"
         for (HistorialEncomiendaDTO historial : ultimoHistorial) {
             if (historial.getDescripcion_evento().equals("El paquete está listo para que el cliente lo recoja en la tienda.")) {
-                validacion = true;
+                yaRegistrado = true;
                 break;
             }
         }
-
-        // Si no existe, agregar el historial de "Listo para recojo en tienda"
-        if (!validacion) {
+        if (!yaRegistrado) {
             agregarHistorial(encomienda, "Listo para recojo en tienda", encomienda.getCiudad_destino(), "En tránsito",
                     "El paquete está listo para que el cliente lo recoja en la tienda.");
         }
-
-        // Revalidar después de agregar
-        validacion = false;
-        for (HistorialEncomiendaDTO historial : ultimoHistorial) {
-            if (historial.getDescripcion_evento().equals("El paquete está listo para que el cliente lo recoja en la tienda.")) {
-                validacion = true;
-                break;
-            }
-        }
-
-        // Si el paquete está listo para entregarse, validar la clave antes de finalizar la entrega
-        if (validacion) {
-            if (encomienda.getClave_secreta().equals(claveIngresada)) {
-                finalizarEntrega(encomienda, "El cliente recogió el paquete en la tienda.");
-            } else {
-                throw new IllegalArgumentException("La clave secreta no coincide.");
-            }
-        }
     }
 
-    // Método para finalizar la entrega y cambiar el estado a "Entregado"
-    private void finalizarEntrega(Encomienda encomienda, String descripcion) {
-        agregarHistorial(encomienda, "Entrega finalizada", encomienda.getCiudad_destino(), "Entregado", descripcion);
+    // Entrega a domicilio con validación de clave
+    public void prepararEntregaADomicilio(Encomienda encomienda, String claveIngresada) {
+        validarClaveSecreta(encomienda, claveIngresada);
+        agregarHistorial(encomienda, "Entrega finalizada", encomienda.getCiudad_destino(), "Entregado",
+                "Se entregó el paquete al cliente " + encomienda.getNombre_receptor() + " " + encomienda.getApellido_receptor() + " en la dirección " + encomienda.getDireccion_destino() + ".");
         encomienda.setEstado("Entregado");
         encomienda.setFecha_entrega(new Date());
         encomiendaRepository.save(encomienda);
+    }
+
+    // Entrega en tienda con validación de clave
+    public void prepararEntregaRecojoEnTienda(Encomienda encomienda, String claveIngresada) {
+        validarClaveSecreta(encomienda, claveIngresada);
+        agregarHistorial(encomienda, "Entrega finalizada", encomienda.getCiudad_destino(), "Entregado",
+                "El cliente " + encomienda.getNombre_receptor() + " " + encomienda.getApellido_receptor() + " recogió su encomienda en la sucursal de" + encomienda.getCiudad_destino() + ".");
+        encomienda.setEstado("Entregado");
+        encomienda.setFecha_entrega(new Date());
+        encomiendaRepository.save(encomienda);
+    }
+
+    // Validar clave secreta
+    private void validarClaveSecreta(Encomienda encomienda, String claveIngresada) {
+        if (!claveIngresada.equals(encomienda.getClave_secreta())) {
+            throw new IllegalArgumentException("La clave secreta no coincide.");
+        }
     }
 
     // Método auxiliar para calcular minutos transcurridos desde el último evento
@@ -231,34 +221,41 @@ public class EncomiendaService {
         historialEncomiendaRepository.save(historial);
     }
 
-    public void omitirViajeYActualizarEstado(Encomienda encomienda) {
+    //Método para omitir el viaje
+    public void omitirViaje(Encomienda encomienda) {
         if (encomienda.getEstado().equals("Pendiente")) {
-            // Inicio del viaje
-            agregarHistorial(encomienda, "Aceptación", encomienda.getCiudad_origen(), "Pendiente", "Se aceptó el paquete");
+            // Inicio de envío
+            agregarHistorial(encomienda, "Inicio de envío", encomienda.getCiudad_origen(), "Pendiente",
+                    "El paquete acaba de salir de la ciudad de " + encomienda.getCiudad_origen() + ".");
             encomienda.setEstado("En tránsito");
             encomienda.setFecha_envio(new Date());
-            agregarHistorial(encomienda, "Envío", encomienda.getCiudad_origen(), "En tránsito", "El paquete salió de " + encomienda.getCiudad_origen());
         }
 
         if (encomienda.getEstado().equals("En tránsito")) {
-            // Llegada a la ciudad de destino
-            agregarHistorial(encomienda, "Recepción", encomienda.getCiudad_destino(), "En tránsito", "Llegó a la sucursal de " + encomienda.getCiudad_destino());
+            // Cerca de destino
+            agregarHistorial(encomienda, "Cerca de destino", encomienda.getCiudad_destino(), "En tránsito",
+                    "El paquete está cerca de llegar a la ciudad de " + encomienda.getCiudad_destino() + ".");
+
+            // Llegada a ciudad destino
+            agregarHistorial(encomienda, "Llegada a ciudad destino", encomienda.getCiudad_destino(), "En tránsito",
+                    "El paquete acaba de llegar a la ciudad de " + encomienda.getCiudad_destino() + ".");
+
+            // Almacén de sucursal
+            agregarHistorial(encomienda, "Almacén de sucursal", encomienda.getCiudad_destino(), "En tránsito",
+                    "El paquete ha llegado al almacén de la sucursal de " + encomienda.getCiudad_destino() + ".");
             encomienda.setEstado("En almacén");
         }
 
         if (encomienda.getEstado().equals("En almacén")) {
-            if (encomienda.getTipo_entrega().equals("Domicilio")) {
-                // Entrega a domicilio
-                agregarHistorial(encomienda, "Entrega", encomienda.getCiudad_destino(), "En tránsito", "El encargado está llevando los paquetes respectivos");
-                encomienda.setEstado("Entregado");
-                encomienda.setFecha_entrega(new Date());
-                agregarHistorial(encomienda, "Entrega finalizada", encomienda.getCiudad_destino(), "Entregado", "El paquete fue entregado al cliente en su domicilio");
-            } else if (encomienda.getTipo_entrega().equals("Recojo en tienda")) {
-                // Recojo en tienda
-                agregarHistorial(encomienda, "Disponibilidad", encomienda.getCiudad_destino(), "En tránsito", "El cliente puede recoger su paquete en la sucursal");
-                encomienda.setEstado("Entregado");
-                encomienda.setFecha_entrega(new Date());
-                agregarHistorial(encomienda, "Entrega finalizada", encomienda.getCiudad_destino(), "Entregado", "El cliente recogió su encomienda");
+            if (encomienda.getTipo_entrega().equalsIgnoreCase("Delivery")) {
+                // Camino a entrega a domicilio
+                agregarHistorial(encomienda, "Camino a entrega a domicilio", encomienda.getCiudad_destino(), "En tránsito",
+                        "El encargado está llevando el paquete a la dirección " + encomienda.getDireccion_destino() + ".");
+            } else if (encomienda.getTipo_entrega().equalsIgnoreCase("Recojo en tienda")) {
+                // Listo para recojo en tienda
+                agregarHistorial(encomienda, "Listo para recojo en tienda", encomienda.getCiudad_destino(), "En tránsito",
+                        "El paquete está listo para que el cliente " + encomienda.getNombre_receptor() + " " + encomienda.getApellido_receptor()
+                                + " lo recoja en la sucursal de " + encomienda.getCiudad_destino() + ".");
             }
         }
 
@@ -298,8 +295,6 @@ public class EncomiendaService {
         nuevaEncomienda.setCant_horas_viaje(encomiendaDTO.getCant_horas_viaje());
         nuevaEncomienda.setUrl(encomiendaDTO.getUrl());
 
-        nuevaEncomienda.setFecha_envio(new Date());
-
         nuevaEncomienda.setNombre_emisor(encomiendaDTO.getNombre_emisor());
         nuevaEncomienda.setApellido_emisor(encomiendaDTO.getApellido_emisor());
         nuevaEncomienda.setDni_emisor(encomiendaDTO.getDni_emisor());
@@ -333,13 +328,13 @@ public class EncomiendaService {
         if (esParaReceptor) {
             // Mensaje para el receptor
             return String.format(
-                    "Hemos recibido una encomienda de %s para usted, %s. El código de la encomienda es: %d. La clave para recoger su encomienda es: %s.",
+                    "Hemos recibido una encomienda de %s para usted, %s. El codigo de la encomienda es: %d. La clave para recoger su encomienda es: %s.",
                     nombreEmisor, nombreReceptor, encomienda.getIdEncomienda(), encomienda.getClave_secreta()
             );
         } else {
             // Mensaje para el emisor
             return String.format(
-                    "Hola %s, su encomienda con el código %d se ha registrado exitosamente y está lista para ser enviada a %s.",
+                    "Hola %s, su encomienda con el codigo %d se ha registrado exitosamente y estara lista para ser enviada a %s.",
                     nombreEmisor, encomienda.getIdEncomienda(), encomienda.getCiudad_destino()
             );
         }
@@ -408,12 +403,5 @@ public class EncomiendaService {
             clave.append(caracteres.charAt(random.nextInt(caracteres.length())));
         }
         return clave.toString();
-    }
-
-    // Método para validar la clave secreta
-    public boolean validarClaveSecreta(Integer idEncomienda, String claveIngresada) {
-        Encomienda encomienda = encomiendaRepository.findById(idEncomienda)
-                .orElseThrow(() -> new RuntimeException("Encomienda no encontrada con ID: " + idEncomienda));
-        return encomienda.getClave_secreta().equals(claveIngresada);
     }
 }

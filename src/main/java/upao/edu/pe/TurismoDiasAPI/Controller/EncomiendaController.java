@@ -46,19 +46,20 @@ public class EncomiendaController {
         return ResponseEntity.ok().build();
     }
 
-    // Endpoint para omitir el tiempo del viaje y actualizar el estado
+    // Endpoint para omitir el tiempo del viaje
     @PostMapping("/{id}/omitir-viaje")
     public ResponseEntity<String> omitirViaje(@PathVariable Integer id) {
         Optional<Encomienda> encomiendaOpt = encomiendaService.obtenerEncomiendaPorId(id);
         if (encomiendaOpt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Encomienda no encontrada");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Encomienda no encontrada.");
         }
 
         Encomienda encomienda = encomiendaOpt.get();
-        encomiendaService.omitirViajeYActualizarEstado(encomienda);
-        return ResponseEntity.ok("El viaje de la encomienda fue omitido y el estado actualizado");
+        encomiendaService.omitirViaje(encomienda);
+        return ResponseEntity.ok("El viaje de la encomienda fue omitido");
     }
 
+    //Registrar encomienda
     @PostMapping("/registrar")
     public ResponseEntity<?> registrarEncomienda(@RequestBody EncomiendaDTO encomiendaDTO) {
         try {
@@ -79,7 +80,7 @@ public class EncomiendaController {
             return ResponseEntity.status(HttpStatus.CREATED).body(nuevaEncomienda);
         } catch (IllegalArgumentException e) {
             logger.error("Datos inválidos al registrar la encomienda: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error: Datos inválidos para registrar la encomienda.");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error: Datos invalidos para registrar la encomienda.");
         } catch (Exception e) {
             logger.error("Error al registrar encomienda: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error: No se pudo registrar la encomienda.");
@@ -95,7 +96,7 @@ public class EncomiendaController {
         try {
             // Obtener la encomienda desde el repositorio
             Encomienda encomienda = encomiendaService.obtenerEncomiendaPorId(idEncomienda)
-                    .orElseThrow(() -> new RuntimeException("Encomienda no encontrada con el ID: " + idEncomienda));
+                    .orElseThrow(() -> new RuntimeException("La encomienda no existe."));
 
             // Determinar el tipo de entrega
             if ("Delivery".equalsIgnoreCase(encomienda.getTipo_entrega())) {
