@@ -1,5 +1,7 @@
 package upao.edu.pe.TurismoDiasAPI.Controller;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -7,7 +9,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import upao.edu.pe.TurismoDiasAPI.DTO.EncomiendaDTO;
 import upao.edu.pe.TurismoDiasAPI.Entity.Encomienda;
-import upao.edu.pe.TurismoDiasAPI.Repository.EncomiendaRepository;
 import upao.edu.pe.TurismoDiasAPI.Service.EncomiendaService;
 
 import java.util.Optional;
@@ -17,8 +18,9 @@ import java.util.Optional;
 @AllArgsConstructor
 public class EncomiendaController {
 
-    EncomiendaService encomiendaService;
-    private EncomiendaRepository encomiendaRepository;
+    @Autowired
+    private final EncomiendaService encomiendaService;
+    private static final Logger logger = LoggerFactory.getLogger(EncomiendaController.class);
 
     // Método para listar la encomienda
     @GetMapping("/listarEncomienda/{id_encomienda}")
@@ -57,31 +59,57 @@ public class EncomiendaController {
         return ResponseEntity.ok("El viaje de la encomienda fue omitido y el estado actualizado");
     }
 
-    //Registrar encomienda
     @PostMapping("/registrar")
-    public ResponseEntity<Encomienda> registrarEncomienda(@RequestBody EncomiendaDTO encomiendaDTO) {
+    public ResponseEntity<?> registrarEncomienda(@RequestBody EncomiendaDTO encomiendaDTO) {
         try {
+            // Registrar la encomienda
             Encomienda nuevaEncomienda = encomiendaService.registrarEncomienda(encomiendaDTO);
+
+            // Generar los mensajes
+            String mensajeEmisor = encomiendaService.generarMensaje(nuevaEncomienda, false);
+            String mensajeReceptor = encomiendaService.generarMensaje(nuevaEncomienda, true);
+
+            // Enviar SMS
+            encomiendaService.enviarMensajeSMS(
+                    encomiendaDTO.getTelefono_emisor(), mensajeEmisor,
+                    encomiendaDTO.getTelefono_receptor(), mensajeReceptor
+            );
+
+            // Retornar la respuesta exitosa con la encomienda creada
             return ResponseEntity.status(HttpStatus.CREATED).body(nuevaEncomienda);
+        } catch (IllegalArgumentException e) {
+            logger.error("Datos inválidos al registrar la encomienda: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error: Datos inválidos para registrar la encomienda.");
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(null);
+            logger.error("Error al registrar encomienda: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error: No se pudo registrar la encomienda.");
         }
     }
 
-    //Validar clave secreta
+
+    // Validar clave secreta y finalizar entrega
     @PostMapping("/validar-clave/{idEncomienda}")
     public ResponseEntity<String> validarClaveSecreta(
             @PathVariable Integer idEncomienda,
             @RequestParam String claveIngresada) {
         try {
-            boolean esValida = encomiendaService.validarClaveSecreta(idEncomienda, claveIngresada);
-            if (esValida) {
-                return ResponseEntity.ok("Clave secreta validada correctamente. El paquete ha sido entregado.");
+            // Obtener la encomienda desde el repositorio
+            Encomienda encomienda = encomiendaService.obtenerEncomiendaPorId(idEncomienda)
+                    .orElseThrow(() -> new RuntimeException("Encomienda no encontrada con el ID: " + idEncomienda));
+
+            // Determinar el tipo de entrega
+            if ("Delivery".equalsIgnoreCase(encomienda.getTipo_entrega())) {
+                encomiendaService.prepararEntregaADomicilio(encomienda, claveIngresada);
+            } else if ("Recojo en tienda".equalsIgnoreCase(encomienda.getTipo_entrega())) {
+                encomiendaService.prepararEntregaRecojoEnTienda(encomienda, claveIngresada);
             } else {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body("La clave secreta no coincide.");
+                throw new IllegalArgumentException("Tipo de entrega desconocido.");
             }
+
+            return ResponseEntity.ok("Clave secreta validada correctamente. La encomienda ha sido entregada.");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(e.getMessage());
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(e.getMessage());
