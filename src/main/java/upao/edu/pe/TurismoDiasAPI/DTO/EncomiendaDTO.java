@@ -30,23 +30,23 @@ public class EncomiendaDTO {
     private String nombre_emisor;
     private String apellido_emisor;
     private Integer dni_emisor;
-    private Integer telefono_emisor;
+    private Long telefono_emisor;
 
     //Datos del receptor - cliente natural
     private String nombre_receptor;
     private String apellido_receptor;
     private Integer dni_receptor;
-    private Integer telefono_receptor;
+    private Long telefono_receptor;
 
     //Datos del emisor - cliente jurídico
     private String razon_social_emisor;
     private Long ruc_emisor;
-    private Integer telefono_empresa_emisor;
+    private Long telefono_empresa_emisor;
 
     //Datos del receptor - cliente jurídico
     private String razon_social_receptor;
     private Long ruc_receptor;
-    private Integer telefono_empresa_receptor;
+    private Long telefono_empresa_receptor;
 
     private List<HistorialEncomiendaDTO> historiales;
 }
